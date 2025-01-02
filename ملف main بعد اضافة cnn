@@ -1,0 +1,119 @@
+import os  # لإدارة الملفات والمجلدات
+from tensorflow.keras.preprocessing.image import ImageDataGenerator  # لتحميل الصور وتحضيرها
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+import matplotlib.pyplot as plt
+
+# 1. تحديد مسارات المجلدات
+base_dir = "dataset"  # اسم المجلد الرئيسي للبيانات
+train_dir = os.path.join(base_dir, "training")  # مسار مجلد التدريب
+val_dir = os.path.join(base_dir, "validation")  # مسار مجلد التحقق
+test_dir = os.path.join(base_dir, "test")       # مسار مجلد الاختبار
+
+# 2. إعداد مولد بيانات التدريب
+train_datagen = ImageDataGenerator(
+    rescale=1.0/255,          # تطبيع الصور: تحويل القيم من 0-255 إلى 0-1
+    rotation_range=20,        # تدوير الصور عشوائيًا
+    width_shift_range=0.2,    # تحريك الصور أفقيًا
+    height_shift_range=0.2,   # تحريك الصور عموديًا
+    zoom_range=0.2,           # تكبير الصور عشوائيًا
+    horizontal_flip=True      # عكس الصور أفقيًا
+)
+
+# 3. إعداد مولد بيانات التحقق والاختبار (بدون تغييرات على الصور)
+val_test_datagen = ImageDataGenerator(rescale=1.0/255)
+
+# 4. إنشاء مولد بيانات التدريب
+train_generator = train_datagen.flow_from_directory(
+    train_dir,                 # مسار مجلد التدريب
+    target_size=(224, 224),    # تغيير حجم الصور إلى 224x224
+    batch_size=32,             # تحميل 32 صورة في كل دفعة
+    class_mode='categorical'   # التصنيف إلى فئات متعددة
+)
+
+# 5. إنشاء مولد بيانات التحقق
+val_generator = val_test_datagen.flow_from_directory(
+    val_dir,                   # مسار مجلد التحقق
+    target_size=(224, 224),
+    batch_size=32,
+    class_mode='categorical'
+)
+
+# 6. إنشاء مولد بيانات الاختبار
+test_generator = val_test_datagen.flow_from_directory(
+    test_dir,                  # مسار مجلد الاختبار
+    target_size=(224, 224),
+    batch_size=32,
+    class_mode='categorical'
+)
+
+# 7. عرض أسماء الفئات التي تم تحميلها
+print("Class Labels:", train_generator.class_indices)
+
+# 8. بناء نموذج CNN
+model = Sequential([
+    # الطبقة الأولى: الالتفاف (Convolutional Layer)
+    Conv2D(32, (3, 3), activation='relu', input_shape=(224, 224, 3)),  # 32 مرشحًا، حجم 3x3
+    MaxPooling2D(pool_size=(2, 2)),  # طبقة التجميع
+
+    # الطبقة الثانية: الالتفاف
+    Conv2D(64, (3, 3), activation='relu'),
+    MaxPooling2D(pool_size=(2, 2)),
+
+    # الطبقة الثالثة: الالتفاف
+    Conv2D(128, (3, 3), activation='relu'),
+    MaxPooling2D(pool_size=(2, 2)),
+
+    # تحويل البيانات إلى شكل مسطح
+    Flatten(),
+
+    # طبقة كاملة الاتصال
+    Dense(128, activation='relu'),
+    Dropout(0.5),  # تقليل التعلم الزائد (Overfitting)
+
+    # الطبقة الأخيرة: الإخراج
+    Dense(5, activation='softmax')  # 5 فئات
+])
+
+# عرض ملخص النموذج
+model.summary()
+
+# 9. تجميع النموذج
+model.compile(
+    optimizer='adam',                  # خوارزمية تحسين
+    loss='categorical_crossentropy',   # وظيفة الخسارة للفئات المتعددة
+    metrics=['accuracy']               # قياس الأداء بالدقة
+)
+
+# 10. تدريب النموذج
+history = model.fit(
+    train_generator,                   # بيانات التدريب
+    validation_data=val_generator,     # بيانات التحقق
+    epochs=20,                         # عدد التكرارات (يمكنك تعديل الرقم)
+    steps_per_epoch=len(train_generator), # عدد الخطوات في كل تكرار
+    validation_steps=len(val_generator)   # عدد خطوات التحقق
+)
+
+# 11. حفظ النموذج
+model.save('diabetic_retinopathy_model.h5')
+
+# 12. عرض منحنيات التدريب
+plt.plot(history.history['accuracy'], label='Train Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.title('Model Accuracy')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.show()
+
+plt.plot(history.history['loss'], label='Train Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.title('Model Loss')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.legend()
+plt.show()
+
+# 13. تقييم النموذج على بيانات الاختبار
+test_loss, test_accuracy = model.evaluate(test_generator)
+print(f"Test Accuracy: {test_accuracy * 100:.2f}%")
