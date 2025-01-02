@@ -1,0 +1,30 @@
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+
+# إنشاء النموذج
+model = Sequential([
+    # الطبقة الأولى: الالتفاف (Convolutional Layer)
+    Conv2D(32, (3, 3), activation='relu', input_shape=(224, 224, 3)), # 32 مرشحاً، حجم 3x3
+    MaxPooling2D(pool_size=(2, 2)),  # طبقة التجميع
+
+    # الطبقة الثانية: الالتفاف
+    Conv2D(64, (3, 3), activation='relu'),
+    MaxPooling2D(pool_size=(2, 2)),
+
+    # الطبقة الثالثة: الالتفاف
+    Conv2D(128, (3, 3), activation='relu'),
+    MaxPooling2D(pool_size=(2, 2)),
+
+    # تحويل البيانات إلى شكل مسطح
+    Flatten(),
+
+    # طبقة كاملة الاتصال
+    Dense(128, activation='relu'),
+    Dropout(0.5),  # تقليل التعلم الزائد (Overfitting)
+
+    # الطبقة الأخيرة: الإخراج
+    Dense(5, activation='softmax')  # 5 فئات
+])
+
+# عرض ملخص النموذج
+model.summary()
